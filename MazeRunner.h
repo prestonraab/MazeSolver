@@ -40,11 +40,12 @@ private:
 	vector<Corner> allCorners;// = { start, finish };
 
 	MajorBlock mfinish;// = Corner(finish);
+	MajorBlock* mfinishPtr;
 
 
-	Path shortPath = {};
-	vector<MajorBlock> foundShortBlocks = {};
-	vector<Path> foundShortPaths = {};
+	Path* shortPath;
+	vector<MajorBlock*> foundShortBlocks = {};
+	vector<Path*> foundShortPaths = {};
 	
 
 	const char* fileIn;
@@ -53,20 +54,23 @@ private:
 	
 	void identifyCorners(vector<vector<bool>> m, vector<Corner>& c);
 	
-	void getPotentialCorners(int i, int j, Corner::direction d, vector<MajorBlock> corners);
+	void getPotentialCorners(int i, int j, Corner::direction d, vector<MajorBlock*> corners);
 	
+	void link(vector<MajorBlock*>& blocks);
 	
-	void findConnections(vector<MajorBlock>& blocks);
+	void reduceConnections(vector<MajorBlock*>& blocks);
 	
 public:
-	vector<MajorBlock> allBlocks;
+	vector<MajorBlock*> allBlocks;
 	
 	MazeRunner(Campus& campus): map(campus.getMap()),
 									height((unsigned)map.size()),
 									width((unsigned)map[0].size()),
 									start(Corner(campus.start[0], campus.start[1], Corner::TL)),
+									shortPath(NULL),
 									finish(Corner(campus.end[0], campus.end[1], Corner::ALL)),
 									mfinish(finish),
+									mfinishPtr(&mfinish),
 									likelyMap(map)
 	{
 		cout << "Found: " << campus.found << endl;
@@ -77,8 +81,10 @@ public:
 									height((unsigned)map.size()),
 									width((unsigned)map[0].size()),
 									start(Corner(startPos.at(0), startPos.at(1), Corner::ALL)),
+									shortPath(NULL),
 									finish(Corner(endPos.at(0), endPos.at(1), Corner::ALL)),
 									mfinish(finish),
+									mfinishPtr(&mfinish),
 									likelyMap(map)
 	{
 		print(map);
@@ -86,7 +92,7 @@ public:
 		allCorners = { start,finish };
 	}
 	
-	Path getShortestPath(){
+	Path* getShortestPath(){
 		return shortPath;
 	}
 	
@@ -100,11 +106,11 @@ public:
 	
 	bool solve(){
 		//print(likelyMap);
-//		int numIterations = 0;
+		int numIterations = 0;
 		
-//		while (removeUnlikelies(likelyMap)) {
-//			cout << ++numIterations << endl;
-//		}
+		while (removeUnlikelies(likelyMap)) {
+			cout << ++numIterations << endl;
+		}
 		
 		//print(likelyMap);
 		cout << "Identifying Corners" << endl;
@@ -112,26 +118,29 @@ public:
 		cout << "Corner size: " << allCorners.size();
 		//print(allCorners);
 		cout << "Finding Major Blocks" << endl;
-		allBlocks = MajorBlock::findMajorBlocks(allCorners, start, finish);
+		allBlocks = MajorBlock::findMajorBlocks(allCorners, start, mfinishPtr);
 		cout << "Finding Connections" << endl;
-		findConnections(allBlocks);
-		print(allBlocks);
+		link(allBlocks);
+		reduceConnections(allBlocks);
+		if(width < 100) print(allBlocks);
 		cout << "Printed All Blocks" << endl;
-		MajorBlock startBlock = getBlock(start);
-		cout << "Start block connections size: " << startBlock.connections.size() << endl;
-		cout << "Start block first connection: (" << startBlock.connections[0].i << ", " << startBlock.connections[0].j << ")" << endl;
+		
+		MajorBlock* startBlock = allBlocks.at(0);
+		
+		cout << "Start block connections size: " << startBlock->connections.size() << endl;
+		cout << "Start block first connection: (" << startBlock->connections[0]->i << ", " << startBlock->connections[0]->j << ")" << endl;
 		cout << "Finding Best Path" << endl;
-		Path initialPath;
-		shortPath = findBestPath(startBlock, initialPath).reverse();//.add(startBlock).reverse();
-		shortPath.print();
+		Path* initialPath = new Path(startBlock);
+		shortPath = findBestPath(startBlock, initialPath);//.add(startBlock).reverse();
+		shortPath->print();
 		cout << "Printed Shortest Path" << endl;
 		//print(allBlocks);
 		cout << "Printed All Blocks" << endl;
 
-		char default_value = 0;
-		vector<vector<unsigned char>> fin(map.size(), vector<unsigned char>(map[0].size(), default_value));
+		//char default_value = 0;
+		//vector<vector<unsigned char>> fin(map.size(), vector<unsigned char>(map[0].size(), default_value));
 		
-		return shortPath.distance != INT_MAX;
+		return shortPath->distance != INT_MAX;
 	}
 	
 	
@@ -142,32 +151,25 @@ public:
 
 
 
-	MajorBlock getBlock(MajorBlock m) {
-		for (MajorBlock& c : allBlocks) {
-			if (m.i == c.i && m.j == c.j) {
-				return *&c;
-			}
-		}
-		return MajorBlock(Corner(-1, -1, Corner::ALL));
-	}
 
-	Path maxPath = Path(INT_MAX);
+	MajorBlock maxBlock = Corner(INT_MAX,INT_MAX,Corner::ALL);
+	Path* maxPath = new Path(&maxBlock);
 
-	Path shortestPath(vector<Path> paths) {
+	Path* shortestPath(vector<Path*> paths) {
 		double min = INT_MAX;
-		Path shortest = maxPath;
-		for (Path p : paths) {
-			if (p.distance < min && p.has(mfinish)) {
+		Path* shortest = maxPath;
+		for (Path* p : paths) {
+			if (p->distance < min && p->has(mfinishPtr)) {
 				shortest = p;
-				min = p.distance;
+				min = p->distance;
 			}
 		}
 		return shortest;
 	}
 
-	vector<Path> alreadySolvedPaths = {};
+	vector<Path*> alreadySolvedPaths = {};
 
-	Path findBestPath(MajorBlock const &m, Path const &p);
+	Path* findBestPath(MajorBlock* &m, Path* &p);
 
 
 
@@ -197,7 +199,7 @@ public:
 		std::cout << std::endl;
 	}
 
-	void print(vector<MajorBlock> blocks) {
+	void print(vector<MajorBlock*> blocks) {
 		int pathCount = 0;
 		for (unsigned int i = 0; i < map.size(); i++) {
 			for (unsigned int j = 0; j < map.at(i).size(); j++) {
@@ -205,14 +207,14 @@ public:
 				long size = 0;
 				bool isInPath = false;
 				for (unsigned int k = 0; k < blocks.size(); k++) {
-					if (i == blocks[k].i && j == blocks[k].j) {
+					if (i == blocks[k]->i && j == blocks[k]->j) {
 						isInCorners = true;
-						if (shortPath.has(blocks[k])) {
+						if (shortPath != NULL && shortPath->has(blocks[k])) {
 							isInPath = true;
-							pathCount = shortPath.find(blocks[k]);
+							pathCount = 1; //shortPath->find(blocks[k]);
 						}
 						else
-							size = blocks[k].connections.size();
+							size = blocks[k]->connections.size();
 					}
 				}
 				if (isInPath) {

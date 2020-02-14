@@ -18,8 +18,8 @@ public:
 		
 	}
 	
-	void drawOnMap(vector<vector<unsigned char>>& mapToPaint, vector<MajorBlock> blocks, Path p, vector<int> start, vector<int> end, bool thick);
-	void drawOnMap(vector<vector<unsigned char>>& map, Path p, bool thick);
+	void drawOnMap(vector<vector<unsigned char>>& mapToPaint, vector<MajorBlock*> blocks, Path* p, vector<int> start, vector<int> end, bool thick);
+	void drawOnMap(vector<vector<unsigned char>>& map, Path* p, bool thick);
 	
 	void encodeOneStep(vector<vector<unsigned char>>& paintedMap, vector<vector<unsigned char>> greyMap);
 	

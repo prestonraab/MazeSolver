@@ -20,82 +20,81 @@ using std::endl;
 
 class Path {
 public:
-	vector<MajorBlock> steps;
+	const Path* previous;
+	const MajorBlock* data;
 	double distance;
-
-	Path() {
-		steps = {};
-		distance = 0;
-	}
-
-	Path(int d) {
-		steps = { Corner(d,d,Corner::ALL) };
-		distance = d;
+	
+	Path(MajorBlock const *block) : previous(NULL), data(block), distance(0){
 	}
 	
-	void operator=(Path other){
-		other.steps = this->steps;
-		other.distance = this->distance;
+	Path(MajorBlock const *block, const Path* previous) : previous(previous), data(block), distance(0){
 	}
 
-	unsigned long getSize() {
-		return steps.size();
+	Path(MajorBlock const *block, int d) : previous(NULL), data(block), distance(d) {
+	}
+	
+	Path* add(MajorBlock const *m) const{
+		Path* next = new Path(m, this);
+		next->distance = distance + sqrt(std::pow(data->i - m->i, 2) * 1.0 + std::pow(data->j - m->j, 2) * 1.0);
+		return next;
 	}
 
-	Path& add(MajorBlock m) {
-		steps.push_back(m);
-
-		if (steps.size() == 1)
-			return *this;
-
-		MajorBlock last = steps.at(steps.size() - 2);
-		distance += sqrt(std::pow(last.i - m.i, 2) * 1.0 + std::pow(last.j - m.j, 2) * 1.0);
-		return *this;
-	}
-
-	bool has(MajorBlock const &m) const {
-		for (MajorBlock const &c : steps) {
-			if (c.i == m.i && c.j == m.j) {
-				return true;
-			}
+	bool has(MajorBlock const *m) const {
+		if (data->i == m->i && data->j == m->j) {
+			return true;
 		}
-		return false;
-	}
-
-	int find(MajorBlock const &m) {
-		for (unsigned int x = 0; x < steps.size(); x++) {
-			MajorBlock c = steps.at(x);
-			if (c.i == m.i && c.j == m.j) {
-				return x;
-			}
+		
+		if(previous == NULL){
+			return false;
 		}
-		return false;
-	}
-
-	Path reverse() {
-		Path rev = {};
-		for (unsigned i = (unsigned)steps.size() - 1; i != -1; i--) {
-			rev.add(steps.at(i));
+		else{
+			return previous->has(m);
 		}
-		return rev;
 	}
 
-	void print() {
-		for (MajorBlock m : steps) {
-			cout << "(" << m.i << ", " << m.j << ")" << "\t";
+	const Path* find(MajorBlock const &m) const{
+		if (data->i == m.i && data->j == m.j) {
+			return this;
 		}
-		cout << endl;
-		cout << endl;
+		
+		if(previous == NULL){
+			return NULL;
+		}
+		
+		return previous->find(m);
 	}
 
-	void drawOnMap(vector<vector<unsigned char>>& map, bool thick) {
-		for (int x = 0; x < steps.size() - 1; ++x) {
-			Line l = Line(steps[x].j, steps[x].i, steps[x + 1].j, steps[x + 1].i);
+//	Path reverse() {
+//		Path rev = {};
+//		for (unsigned i = (unsigned)steps.size() - 1; i != -1; i--) {
+//			rev.add(steps.at(i));
+//		}
+//		return rev;
+//	}
+
+	void print() const{
+		cout << "(" << data->i << ", " << data->j << ")" << "\t";
+		
+		if(previous == NULL){
+			cout << endl;
+			cout << endl;
+		}
+		else{
+			previous->print();
+		}
+	}
+
+	void drawOnMap(vector<vector<unsigned char>>& map, bool thick, int numSteps, double distance) const{
+		if(previous != NULL){
+			Line l = Line(data->j, data->i, previous->data->j, previous->data->i);
 			l.print();
 			l.drawOn(map, thick);
+			previous->drawOnMap(map, thick, ++numSteps, distance);
 		}
-		cout << "NumSteps: " << steps.size() << endl;
-		cout << "Distance: " << distance << endl;
+		else{
+			cout << "NumSteps: " << numSteps << endl;
+			cout << "Distance: " << distance << endl;
+		}
 	}
 };
 

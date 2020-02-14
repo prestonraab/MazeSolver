@@ -62,10 +62,7 @@ int main()
 	
 	bool solved = runner->solve();
 	
-	Path shortPath;
 	if(solved){
-		shortPath = runner->getShortestPath();
-		
 		PathWriter writer(runner, fileOut);
 		
 		vector<vector<unsigned char>> mapToPaint;

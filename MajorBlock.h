@@ -21,7 +21,7 @@ class MajorBlock {
 public:
 	int i;
 	int j;
-	vector<MajorBlock> connections;
+	vector<MajorBlock*> connections = {};
 
 	MajorBlock(Corner c) {
 		if (c.d == Corner::TL || c.d == Corner::TR || c.d == Corner::ALL)
@@ -32,37 +32,34 @@ public:
 			j = c.j;
 		else
 			j = c.j + 1;
-		connections = {};
 	}
 	
-	MajorBlock(const MajorBlock &other): i(other.i), j(other.j), connections(other.connections){
-		
-	}
+//	MajorBlock(const MajorBlock &other): i(other.i), j(other.j){
+//		if(other.connections.size() > 0){
+//			connections = other.connections;
+//		}
+//	}
 	
-	MajorBlock operator=(const MajorBlock &other){
-		return other;
-	}
-	
-	static vector<MajorBlock> findMajorBlocks(vector<Corner> corners, Corner start, Corner finish) {
-		vector<MajorBlock> blocks;
-		blocks.push_back(start);
+	static vector<MajorBlock*> findMajorBlocks(vector<Corner> corners, Corner start, MajorBlock* &finish) {
+		vector<MajorBlock*> blocks;
+		blocks.push_back(new MajorBlock(start));
 		blocks.push_back(finish);
-		blocks[0].connections.push_back(finish);
+		blocks[0]->connections.push_back(blocks[1]);
 
 		unsigned long size = corners.size();
 		unsigned percentile = (unsigned)size / 100 + 1;
 
 		for (unsigned int i = 0; i < size; i++) {
 			Corner c = corners[i];
-			MajorBlock m = MajorBlock(c);
-			blocks.at(0).connections.push_back(m);
-			m.connections.push_back(finish);
-
-			getPotentialCorners(m.connections, c.i, c.j, c.d, corners);
-			
-			if (m.connections.size() > 0) {
-				blocks.push_back(m);
-			}
+			MajorBlock* m = new MajorBlock(c);
+			blocks.at(0)->connections.push_back(m);
+			m->connections.push_back(blocks[1]);
+			blocks.push_back(m);
+		}
+		for (unsigned int i = 0; i < size; i++) {
+			MajorBlock*& m = blocks.at(i);
+			Corner c = corners[i];
+			getPotentialCorners(blocks, m->connections, c.i, c.j, c.d, corners);
 
 			if (i % percentile == 0){
 				cout << i * 100.0 / size << "%" << endl;
@@ -91,8 +88,8 @@ public:
 				vector<MajorBlock>::iterator it = lower_bound(newList.begin(), newList.end(), m);  //check what's already added to the list
 				if (it != newList.end() && *it == m) {  //if we found it
 					foundRepeat = true;          //we found a repeat
-					for (MajorBlock &c : m.connections) {  //add the given one's connections to the new list one's connections
-						if (!(c == *it) && !(c.i == i && c.j == j))
+					for (MajorBlock *c : m.connections) {  //add the given one's connections to the new list one's connections
+						if (!(*c == *it) && !(c->i == i && c->j == j))
 						{
 							it->connections.push_back(c);
 						}
@@ -111,15 +108,16 @@ public:
 		return newList;
 	}
 	
-	static void getPotentialCorners(vector<MajorBlock> &potentialCorners, int &i, int &j, Corner::direction const &d, vector<Corner> const &corners)
+	static void getPotentialCorners(vector<MajorBlock*> allBlocks, vector<MajorBlock*> &potentialCorners, int &i, int &j, Corner::direction const &d, vector<Corner> const &corners)
 	{
 		for (Corner c : corners)
 		{
 			if (c.d == Corner::ALL)
 			{
-				potentialCorners.push_back(c);
+				potentialCorners.push_back(new MajorBlock(c));
 				continue;
 			}
+			bool shouldAdd = false;
 			switch (Corner::getRelation(d, c.d))
 			{
 			case Corner::adj:
@@ -127,27 +125,27 @@ public:
 				{
 				case Corner::TL:
 					if (i == c.i && c.d == Corner::TR)
-						potentialCorners.push_back(c);
+						shouldAdd = true;
 					else if (j == c.j && c.d == Corner::BL)
-						potentialCorners.push_back(c);
+						shouldAdd = true;
 					break;
 				case Corner::TR:
 					if (i == c.i && c.d == Corner::TL)
-						potentialCorners.push_back(c);
+						shouldAdd = true;
 					else if (j == c.j && c.d == Corner::BR)
-						potentialCorners.push_back(c);
+						shouldAdd = true;
 					break;
 				case Corner::BL:
 					if (i == c.i && c.d == Corner::BR)
-						potentialCorners.push_back(c);
+						shouldAdd = true;
 					else if (j == c.j && c.d == Corner::TL)
-						potentialCorners.push_back(c);
+						shouldAdd = true;
 					break;
 				case Corner::BR:
 					if (i == c.i && c.d == Corner::BL)
-						potentialCorners.push_back(c);
+						shouldAdd = true;
 					else if (j == c.j && c.d == Corner::TR)
-						potentialCorners.push_back(c);
+						shouldAdd = true;
 					break;
 				default:
 					break;
@@ -157,25 +155,48 @@ public:
 				{
 					case Corner::TL:
 						if (Corner::searchDirection(i, j, Corner::TR, c) || Corner::searchDirection(i, j, Corner::BL, c))
-							potentialCorners.push_back(c);
+							shouldAdd = true;
 						break;
 					case Corner::TR:
 						if (Corner::searchDirection(i, j, Corner::BR, c) || Corner::searchDirection(i, j, Corner::TL, c))
-							potentialCorners.push_back(c);
+							shouldAdd = true;
 						break;
 					case Corner::BL:
 						if (Corner::searchDirection(i, j, Corner::TL, c) || Corner::searchDirection(i, j, Corner::BR, c))
-							potentialCorners.push_back(c);
+							shouldAdd = true;
 						break;
 					case Corner::BR:
-						if (Corner::searchDirection(i, j, Corner::BL, c) || Corner::searchDirection(i, j, Corner::TR, c))
-							potentialCorners.push_back(c);
+					if (Corner::searchDirection(i, j, Corner::BL, c) || Corner::searchDirection(i, j, Corner::TR, c))
+							shouldAdd = true;
 						break;
 					default:
 						break;
 				}
 			}
+			if(shouldAdd){
+				MajorBlock m = MajorBlock(c);
+				potentialCorners.push_back(getBlock(allBlocks, m.i, m.j));
+			}
 		}
+	}
+	
+	
+	static MajorBlock* getBlock(vector<MajorBlock*> blocks, MajorBlock*& m) {
+		for (MajorBlock*& c : blocks) {
+			if (m->i == c->i && m->j == c->j) {
+				return c;
+			}
+		}
+		return new MajorBlock(Corner(-1, -1, Corner::ALL));
+	}
+	
+	static MajorBlock* getBlock(vector<MajorBlock*> blocks, int i, int j) {
+		for (MajorBlock*& c : blocks) {
+			if (i == c->i && j == c->j) {
+				return c;
+			}
+		}
+		return new MajorBlock(Corner(-1, -1, Corner::ALL));
 	}
 
 	bool operator==(MajorBlock other) {

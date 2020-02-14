@@ -9,18 +9,27 @@
 #include "PathWriter.hpp"
 
 
-void PathWriter::drawOnMap(vector<vector<unsigned char>>& mapToPaint, vector<MajorBlock> blocks, Path p, vector<int> start, vector<int> end, bool thick) {
+void PathWriter::drawOnMap(vector<vector<unsigned char>>& mapToPaint, vector<MajorBlock*> blocks, Path* p, vector<int> start, vector<int> end, bool thick) {
 
-	p.drawOnMap(mapToPaint, thick);
 
 	for (unsigned int k = 0; k < blocks.size(); k++) {
-		int i = blocks[k].i;
-		int j = blocks[k].j;
+		int i = blocks[k]->i;
+		int j = blocks[k]->j;
 		if(i == INT_MAX){
 			continue;
 		}
 		mapToPaint[i][j] = 'C';
-		if (p.has(blocks[k])) {
+	}
+	
+	p->drawOnMap(mapToPaint, thick, 0, p->distance);
+	
+	for (unsigned int k = 0; k < blocks.size(); k++) {
+		int i = blocks[k]->i;
+		int j = blocks[k]->j;
+		if(i == INT_MAX){
+			continue;
+		}
+		if (p->has(blocks[k])) {
 			mapToPaint[i][j] = 'P';
 		}
 	}
@@ -43,14 +52,14 @@ void PathWriter::drawOnMap(vector<vector<unsigned char>>& mapToPaint, vector<Maj
 //	}
 }
 
-void PathWriter::drawOnMap(vector<vector<unsigned char>>& mapToPaint, Path p, bool thick) {
+void PathWriter::drawOnMap(vector<vector<unsigned char>>& mapToPaint, Path* p, bool thick) {
 	//int pathCount = 0;
 
-	p.drawOnMap(mapToPaint, thick);
+	p->drawOnMap(mapToPaint, thick, 0, p->distance);
 
-	for (unsigned int k = 0; k < p.getSize(); k++) {
-		int i = p.steps[k].i;
-		int j = p.steps[k].j;
+	for (Path path = *p; path.previous != NULL; path = *path.previous) {
+		int i = path.data->i;
+		int j = path.data->j;
 		if(i == INT_MAX){
 			continue;
 		}

@@ -43,62 +43,84 @@ bool MazeRunner::removeUnlikelies(vector<vector<bool>>& m) {
 	return removedOne;
 }
 
+void MazeRunner::link(vector<MajorBlock*>& blocks){
+	cout << "Linking" << endl;
+	unsigned long size = blocks.size();
+	unsigned percentile = (unsigned)(size / 100 + 1);
+	
+	for (unsigned int x = 0; x < size; ++x) {
+		MajorBlock*& m = blocks.at(x);
+		for (unsigned int y = 0; y < m->connections.size(); ++y) {
+			MajorBlock*& t = m->connections.at(y);
+			
+			for(unsigned int z = 0; z < blocks.size(); ++z){
+				if(t->i == blocks.at(z)->i && t->j == blocks.at(z) -> j){
+					m->connections.erase(m->connections.begin() + y);
+					m->connections.insert(m->connections.begin() + y, blocks.at(z));
+				}
+			}
+		}
+		if (x % percentile == 0) {
+			cout << x * 100 / size << " %" << endl;
+		}
+	}
+}
 
 
-void MazeRunner::findConnections(vector<MajorBlock>& blocks) {
+void MazeRunner::reduceConnections(vector<MajorBlock*>& blocks) {
 	unsigned long size = blocks.size();
 	unsigned percentile = (unsigned)(size / 100 + 1);
 	for (unsigned int x = 0; x < size; ++x) {
-		MajorBlock& m = blocks.at(x);
+		MajorBlock*& m = blocks.at(x);
 		
-		vector<MajorBlock> newConnections;
+		vector<MajorBlock*> newConnections;
 		
-		for (unsigned int y = 0; y < m.connections.size(); ++y) {
-			MajorBlock& t = m.connections.at(y);
+		for (unsigned int y = 0; y < m->connections.size(); ++y) {
+			MajorBlock*& t = m->connections.at(y);
 			bool collided = false;
 			
-			if(t.i == 3 && t.j == 3){
-				cout << "T: (" << t.i << ", " << t.j << ")" << endl;
+			if(t->i == 3 && t->j == 3){
+				cout << "T: (" << t->i << ", " << t->j << ")" << endl;
 				;
 			}
 			
-			if (m.i == t.i && m.j == t.j) {
+			if (m->i == t->i && m->j == t->j) {
 				collided = true;
 			}
-			else if (m.i == t.i) {  //horizontal
-				int delJ = t.j - m.j;
+			else if (m->i == t->i) {  //horizontal
+				int delJ = t->j - m->j;
 				int sgnJ = sgn(delJ);
-				for (int j = m.j + sgnJ; j != t.j; j += sgnJ) {
-					if (map[m.i][j])
+				for (int j = m->j + sgnJ; j != t->j; j += sgnJ) {
+					if (map[m->i][j])
 						collided = true;
 				}
 			}
-			else if (m.j == t.j) {  //vertical
-				int delI = t.i - m.i;
+			else if (m->j == t->j) {  //vertical
+				int delI = t->i - m->i;
 				int sgnI =  sgn(delI);
-				for (int i = m.i + sgnI; i != t.i; i += sgnI) {
-					if (map[i][m.j])
+				for (int i = m->i + sgnI; i != t->i; i += sgnI) {
+					if (map[i][m->j])
 						collided = true;
 				}
 			}
 			else {  //some diagonal
-				Line line = Line(t.i, t.j, m.i, m.j);
-				int down = (t.i > m.i) ? 1 : -1;
-				int right = (t.j > m.j) ? 1 : -1;
+				Line line = Line(t->i, t->j, m->i, m->j);
+				int down = (t->i > m->i) ? 1 : -1;
+				int right = (t->j > m->j) ? 1 : -1;
 
-				int i = m.i;
-				int j = m.j + right;
+				int i = m->i;
+				int j = m->j + right;
 
 				int originalPoint[] = { i,j };
 
 				if (map[i][j] || map[i + down][j - right]) { //collide near m
 					collided = true;
 				}
-				else if (map[t.i][t.j - right] || map[t.i - down][t.j]) {  //collide near j
+				else if (map[t->i][t->j - right] || map[t->i - down][t->j]) {  //collide near j
 					collided = true;
 				}
 				else { // m and j are far apart
-					while (i != (t.i - down) || j != (t.j)) { //diagonal doesn't match t's diagonal
+					while (i != (t->i - down) || j != (t->j)) { //diagonal doesn't match t's diagonal
 						int rightPoint[] = { i       , j + right };
 						int downPoint[]  = { i + down, j };
 						
@@ -130,13 +152,13 @@ void MazeRunner::findConnections(vector<MajorBlock>& blocks) {
 				}
 			}
 			if (collided == false) {
-				newConnections.push_back(m.connections[y]);
-//				m.connections.erase(m.connections.begin() + y);
+				newConnections.push_back(m->connections[y]);//getBlock(m->connections[y]));
+//				m->connections.erase(m->connections.begin() + y);
 //				y--;
 			}
 		}
-		m.connections.clear();
-		m.connections = newConnections;
+		m->connections.clear();
+		m->connections = newConnections;
 		
 		if (x % percentile == 0) {
 			cout << x * 100 / size << " %" << endl;
@@ -146,8 +168,11 @@ void MazeRunner::findConnections(vector<MajorBlock>& blocks) {
 
 
 
-Path MazeRunner::findBestPath(MajorBlock const &m, Path const &p) {
-	vector<Path> paths = {};
+Path* MazeRunner::findBestPath(MajorBlock* &m, Path* &p) {
+	Path* localShortPath = maxPath;
+	int minDistance = INT_MAX;
+	
+	Path* trod = p->add(m);
 	
 	unsigned long findBlock = foundShortBlocks.size();
 	for (unsigned x = 0; x < findBlock; x++) {
@@ -157,53 +182,46 @@ Path MazeRunner::findBestPath(MajorBlock const &m, Path const &p) {
 		}
 	}
 	if (findBlock != foundShortBlocks.size()) { //If we've gotten to this block already
-		if(p.distance > foundShortPaths[findBlock].distance){ //A faster way
+		if(trod->distance >= foundShortPaths[findBlock]->distance){ //Faster than the current path
+			delete trod;
 			return maxPath;
 		}
-		else if(p.distance < foundShortPaths[findBlock].distance){ //A slower way
-			foundShortPaths.at(findBlock) = p;
+		else{ //if(trod->distance < foundShortPaths[findBlock]->distance){ //But now we know a faster way
+			foundShortPaths.at(findBlock) = trod;
+			foundShortBlocks[findBlock] = m;
+			//cout << "Found better distance: (" << m->i << ", " << m->j << ") :" << trod->distance << endl;
 		}
 	}
 	else{ //If this is the first time we've reached this block
 		foundShortBlocks.push_back(m);
-		foundShortPaths.push_back(p);
+		foundShortPaths.push_back(trod);
 	}
 	
 	
-	
-	for (MajorBlock const &n : m.connections) {
-		if (p.has(n))   //Don't step on a tile already stepped on
+	for (MajorBlock* &n : m->connections) {
+		if (p->has(n))   //Don't step on a tile already stepped on
 			continue;
-//		if(m.i == 3 && m.j == 3){
-//			cout << "N: (" << n.i << ", " << n.j << ")" << endl;
-//			;
-//		}
 		
-		if (mfinish == n) {  //If a connection hits the end, form a new path
-			Path newPath = Path();
-			newPath.add(n);
-			newPath.add(m);
+		if (mfinishPtr == n) {  //If a connection hits the end, form a new path
+			Path* newPath = new Path(mfinishPtr);
 			//paths.push_back(newPath);
 			cout << "Hit end" << endl;
-			return newPath;
+			return newPath->add(m);;
 			
 		}
 		else {   //Otherwise continue search from the new connection
-			Path trod = p;
-			trod.add(m);
-			Path bestPath = findBestPath(getBlock(n), trod);
-			paths.push_back(bestPath);
+			Path* newPath = findBestPath(n, trod)->add(m);
+			if(newPath->distance < minDistance){
+				localShortPath = newPath;
+				minDistance = newPath->distance;
+			}
+			else{
+				delete newPath;
+			}
 		}
 	}
-	for (Path& path : paths) {
-		path.add(m);
-	}
-	if(m.i == 3 && m.j == 3){
-		;
-	}
-	Path shortest = shortestPath(paths);
 
-	return shortest;
+	return localShortPath;
 }
 
 void MazeRunner::identifyCorners(vector<vector<bool>> m, vector<Corner>& c) {
